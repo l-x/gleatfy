@@ -1,0 +1,18 @@
+name = "gleatfy"
+version = "0.1.0"
+
+# description = ""
+
+licences = ["GPL-3.0-or-later"]
+repository = { type = "github", user = "l-x", repo = "gleatfy" }
+
+gleam = ">= 1.5.0"
+
+
+[dependencies]
+gleam_stdlib = ">= 0.34.0 and < 2.0.0"
+gleam_json = ">= 2.0.0 and < 3.0.0"
+gleam_httpc = ">= 2.3.0 and < 3.0.0"
+
+[dev-dependencies]
+gleeunit = ">= 1.0.0 and < 2.0.0"

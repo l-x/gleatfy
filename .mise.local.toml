@@ -1,0 +1,4 @@
+[tools]
+erlang = "27"
+gleam = "1.5"
+rebar = "3"
