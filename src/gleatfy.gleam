@@ -63,6 +63,8 @@ pub opaque type Builder {
     attachment_url: Option(String),
     attachment_name: Option(String),
     actions: Option(List(Action)),
+    without_message_cache: Bool,
+    without_firebase: Bool,
   )
 }
 
@@ -84,6 +86,8 @@ pub fn new() -> Builder {
     attachment_url: None,
     attachment_name: None,
     actions: None,
+    without_message_cache: False,
+    without_firebase: False,
   )
 }
 
@@ -151,6 +155,14 @@ pub fn actions(builder: Builder, are actions: List(Action)) -> Builder {
   Builder(..builder, actions: Some(actions))
 }
 
+pub fn without_message_cache(builder: Builder) -> Builder {
+  Builder(..builder, without_message_cache: True)
+}
+
+pub fn without_firebase(builder: Builder) -> Builder {
+  Builder(..builder, without_firebase: True)
+}
+
 pub fn request(for builder: Builder) -> Result(Request(String), Error) {
   use request <- try(
     req.to(builder.server)
@@ -166,6 +178,8 @@ pub fn request(for builder: Builder) -> Result(Request(String), Error) {
   |> req.set_body(request_body(from: builder))
   |> req.set_method(Post)
   |> set_login(builder.login)
+  |> set_message_cache(builder.without_message_cache)
+  |> set_firebase(builder.without_firebase)
   |> Ok
 }
 
@@ -293,5 +307,25 @@ fn set_login(request: Request(String), login: Option(Login)) -> Request(String) 
           False,
         ),
       )
+  }
+}
+
+fn set_message_cache(
+  request: Request(String),
+  without_message_cache: Bool,
+) -> Request(String) {
+  case without_message_cache {
+    True -> request |> req.set_header("cache", "no")
+    False -> request
+  }
+}
+
+fn set_firebase(
+  request: Request(String),
+  without_firebase: Bool,
+) -> Request(String) {
+  case without_firebase {
+    True -> request |> req.set_header("firebase", "no")
+    False -> request
   }
 }

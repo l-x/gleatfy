@@ -58,6 +58,20 @@ pub fn invalid_server_test() {
   |> should.equal(gleatfy.InvalidServerUrl("blah"))
 }
 
+pub fn without_message_cache_test() {
+  subject()
+  |> gleatfy.without_message_cache
+  |> request
+  |> has_headers([#("cache", "no")])
+}
+
+pub fn without_firebase_test() {
+  subject()
+  |> gleatfy.without_firebase
+  |> request
+  |> has_headers([#("firebase", "no")])
+}
+
 pub fn basic_auth_test() {
   subject()
   |> gleatfy.login(with: Basic("username", "password"))
