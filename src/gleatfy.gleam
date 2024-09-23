@@ -2,7 +2,9 @@ import gleam/bit_array
 import gleam/http.{Post}
 import gleam/http/request.{type Request} as req
 import gleam/json.{type Json}
+import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/pair
 import gleam/result.{try}
 
 const default_server = "https://ntfy.sh"
@@ -25,6 +27,17 @@ pub type Login {
   Token(token: String)
 }
 
+pub type Action {
+  View(label: String, url: String, clear_after: Bool)
+  Http(label: String, request: Request(String), clear_after: Bool)
+  Broadcast(
+    label: String,
+    intent: String,
+    extras: List(#(String, String)),
+    clear_after: Bool,
+  )
+}
+
 pub opaque type Builder {
   Builder(
     login: Option(Login),
@@ -42,6 +55,7 @@ pub opaque type Builder {
     icon_url: Option(String),
     attachment_url: Option(String),
     attachment_name: Option(String),
+    actions: Option(List(Action)),
   )
 }
 
@@ -62,6 +76,7 @@ pub fn new() -> Builder {
     icon_url: None,
     attachment_url: None,
     attachment_name: None,
+    actions: None,
   )
 }
 
@@ -125,6 +140,10 @@ pub fn attachment_name(builder: Builder, is attachment_name: String) -> Builder 
   Builder(..builder, attachment_name: Some(attachment_name))
 }
 
+pub fn actions(builder: Builder, are actions: List(Action)) -> Builder {
+  Builder(..builder, actions: Some(actions))
+}
+
 pub fn request(for builder: Builder) -> Result(Request(String), Nil) {
   use request <- try(req.to(builder.server))
 
@@ -139,9 +158,9 @@ fn request_body(from builder: Builder) -> String {
   [#("topic", json.string(builder.topic))]
   |> optional("message", builder.message, json.string)
   |> optional("title", builder.title, json.string)
-  |> optional("priority", builder.priority, int_priority)
+  |> optional("priority", builder.priority, json_priority)
   |> optional("tags", builder.tags, json.array(_, json.string))
-  |> optional("markdown", builder.format, fn(f) { json.bool(f == Markdown) })
+  |> optional("markdown", builder.format, json_format)
   |> optional("delay", builder.delay, json.string)
   |> optional("call", builder.call, json.string)
   |> optional("email", builder.email, json.string)
@@ -149,6 +168,7 @@ fn request_body(from builder: Builder) -> String {
   |> optional("attachment", builder.attachment_url, json.string)
   |> optional("filename", builder.attachment_name, json.string)
   |> optional("icon", builder.icon_url, json.string)
+  |> optional("actions", builder.actions, json_actions)
   |> json.object
   |> json.to_string
 }
@@ -165,7 +185,7 @@ fn optional(
   }
 }
 
-fn int_priority(priority: Priority) -> Json {
+fn json_priority(priority: Priority) -> Json {
   json.int(case priority {
     VeryHigh -> 5
     High -> 4
@@ -173,6 +193,13 @@ fn int_priority(priority: Priority) -> Json {
     Low -> 2
     VeryLow -> 1
   })
+}
+
+fn json_format(format: Format) -> Json {
+  case format {
+    Text -> json.bool(False)
+    Markdown -> json.bool(True)
+  }
 }
 
 fn set_login(request: Request(String), login: Option(Login)) -> Request(String) {
@@ -191,4 +218,70 @@ fn set_login(request: Request(String), login: Option(Login)) -> Request(String) 
         ),
       )
   }
+}
+
+fn json_string_map(items: List(#(String, String))) -> Json {
+  items
+  |> list.map(pair.map_second(_, json.string))
+  |> json.object
+}
+
+fn json_actions(actions: List(Action)) -> Json {
+  actions
+  |> list.map(json_action)
+  |> json.preprocessed_array
+}
+
+fn json_action(action: Action) -> Json {
+  case action {
+    View(label:, url:, clear_after:) ->
+      json_view_action(label, url, clear_after)
+    Http(label:, request:, clear_after:) ->
+      json_http_action(label, request, clear_after)
+    Broadcast(label:, intent:, extras:, clear_after:) ->
+      json_broadcast_action(label, intent, extras, clear_after)
+  }
+}
+
+fn json_base_action(
+  action: String,
+  label: String,
+  clear_after: Bool,
+  properties: List(#(String, Json)),
+) -> Json {
+  [
+    #("action", json.string(action)),
+    #("label", json.string(label)),
+    #("clear", json.bool(clear_after)),
+    ..properties
+  ]
+  |> json.object
+}
+
+fn json_view_action(label: String, url: String, clear_after: Bool) -> Json {
+  json_base_action("view", label, clear_after, [#("url", json.string(url))])
+}
+
+fn json_http_action(
+  label: String,
+  request: req.Request(String),
+  clear_after: Bool,
+) -> Json {
+  json_base_action("broadcast", label, clear_after, [
+    #("method", request.method |> http.method_to_string |> json.string),
+    #("headers", json_string_map(request.headers)),
+    #("body", json.string(request.body)),
+  ])
+}
+
+fn json_broadcast_action(
+  label: String,
+  intent: String,
+  extras: List(#(String, String)),
+  clear_after: Bool,
+) -> Json {
+  json_base_action("broadcast", label, clear_after, [
+    #("intent", json.string(intent)),
+    #("extras", json_string_map(extras)),
+  ])
 }
