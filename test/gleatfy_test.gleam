@@ -11,6 +11,11 @@ pub fn main() {
   gleeunit.main()
 }
 
+fn subject() -> gleatfy.Builder {
+  gleatfy.new()
+  |> gleatfy.topic("topic")
+}
+
 fn has_body(
   req: request.Request(String),
   body: String,
@@ -37,51 +42,53 @@ fn request(builder: gleatfy.Builder) -> request.Request(String) {
   |> should.be_ok
 }
 
-pub fn defaults_test() {
-  gleatfy.new()
-  |> request
-  |> has_body("{\"topic\":\"\"}")
-  |> has_headers([])
+pub fn empty_topic_test() {
+  subject()
+  |> gleatfy.topic(is: "")
+  |> gleatfy.request
+  |> should.be_error
+  |> should.equal(gleatfy.InvalidTopic(""))
+}
+
+pub fn invalid_server_test() {
+  subject()
+  |> gleatfy.server("blah")
+  |> gleatfy.request
+  |> should.be_error
+  |> should.equal(gleatfy.InvalidServerUrl("blah"))
 }
 
 pub fn basic_auth_test() {
-  gleatfy.new()
+  subject()
   |> gleatfy.login(with: Basic("username", "password"))
   |> request
   |> has_headers([#("authorization", "Basic dXNlcm5hbWU6cGFzc3dvcmQ")])
 }
 
 pub fn token_auth_test() {
-  gleatfy.new()
+  subject()
   |> gleatfy.login(with: Token("token"))
   |> request
   |> has_headers([#("authorization", "Bearer token")])
 }
 
-pub fn topic_test() {
-  gleatfy.new()
-  |> gleatfy.topic(is: "message topic")
-  |> request
-  |> has_body("{\"topic\":\"message topic\"}")
-}
-
 pub fn message_test() {
-  gleatfy.new()
+  subject()
   |> gleatfy.message(is: "message message")
   |> request
-  |> has_body("{\"message\":\"message message\",\"topic\":\"\"}")
+  |> has_body("{\"message\":\"message message\",\"topic\":\"topic\"}")
 }
 
 pub fn title_test() {
-  gleatfy.new()
+  subject()
   |> gleatfy.title(is: "message title")
   |> request
-  |> has_body("{\"title\":\"message title\",\"topic\":\"\"}")
+  |> has_body("{\"title\":\"message title\",\"topic\":\"topic\"}")
 }
 
 pub fn priority_test() {
   let should_have_body = fn(p: Priority, body: String) -> Nil {
-    gleatfy.new()
+    subject()
     |> gleatfy.priority(is: p)
     |> request
     |> has_body(body)
@@ -89,115 +96,115 @@ pub fn priority_test() {
     Nil
   }
 
-  VeryLow |> should_have_body("{\"priority\":1,\"topic\":\"\"}")
-  Low |> should_have_body("{\"priority\":2,\"topic\":\"\"}")
-  Normal |> should_have_body("{\"priority\":3,\"topic\":\"\"}")
-  High |> should_have_body("{\"priority\":4,\"topic\":\"\"}")
-  VeryHigh |> should_have_body("{\"priority\":5,\"topic\":\"\"}")
+  VeryLow |> should_have_body("{\"priority\":1,\"topic\":\"topic\"}")
+  Low |> should_have_body("{\"priority\":2,\"topic\":\"topic\"}")
+  Normal |> should_have_body("{\"priority\":3,\"topic\":\"topic\"}")
+  High |> should_have_body("{\"priority\":4,\"topic\":\"topic\"}")
+  VeryHigh |> should_have_body("{\"priority\":5,\"topic\":\"topic\"}")
 }
 
 pub fn tags_test() {
-  gleatfy.new()
+  subject()
   |> gleatfy.tags(are: [])
   |> request
-  |> has_body("{\"tags\":[],\"topic\":\"\"}")
+  |> has_body("{\"tags\":[],\"topic\":\"topic\"}")
 
-  gleatfy.new()
+  subject()
   |> gleatfy.tags(are: ["one"])
   |> request
-  |> has_body("{\"tags\":[\"one\"],\"topic\":\"\"}")
+  |> has_body("{\"tags\":[\"one\"],\"topic\":\"topic\"}")
 
-  gleatfy.new()
+  subject()
   |> gleatfy.tags(are: ["one", "two"])
   |> request
-  |> has_body("{\"tags\":[\"one\",\"two\"],\"topic\":\"\"}")
+  |> has_body("{\"tags\":[\"one\",\"two\"],\"topic\":\"topic\"}")
 }
 
 pub fn format_test() {
-  gleatfy.new()
+  subject()
   |> gleatfy.format(is: Text)
   |> request
-  |> has_body("{\"markdown\":false,\"topic\":\"\"}")
+  |> has_body("{\"markdown\":false,\"topic\":\"topic\"}")
 
-  gleatfy.new()
+  subject()
   |> gleatfy.format(is: Markdown)
   |> request
-  |> has_body("{\"markdown\":true,\"topic\":\"\"}")
+  |> has_body("{\"markdown\":true,\"topic\":\"topic\"}")
 }
 
 pub fn delay_test() {
-  gleatfy.new()
+  subject()
   |> gleatfy.delay(is: "1 year")
   |> request
-  |> has_body("{\"delay\":\"1 year\",\"topic\":\"\"}")
+  |> has_body("{\"delay\":\"1 year\",\"topic\":\"topic\"}")
 }
 
 pub fn call_test() {
-  gleatfy.new()
+  subject()
   |> gleatfy.call(to: "+123456789")
   |> request
-  |> has_body("{\"call\":\"+123456789\",\"topic\":\"\"}")
+  |> has_body("{\"call\":\"+123456789\",\"topic\":\"topic\"}")
 }
 
 pub fn email_test() {
-  gleatfy.new()
+  subject()
   |> gleatfy.email(to: "info@example.com")
   |> request
-  |> has_body("{\"email\":\"info@example.com\",\"topic\":\"\"}")
+  |> has_body("{\"email\":\"info@example.com\",\"topic\":\"topic\"}")
 }
 
 pub fn click_url_test() {
-  gleatfy.new()
+  subject()
   |> gleatfy.click_url(is: "https://example.com")
   |> request
-  |> has_body("{\"click\":\"https://example.com\",\"topic\":\"\"}")
+  |> has_body("{\"click\":\"https://example.com\",\"topic\":\"topic\"}")
 }
 
 pub fn icon_url_test() {
-  gleatfy.new()
+  subject()
   |> gleatfy.icon_url(is: "https://example.com")
   |> request
-  |> has_body("{\"icon\":\"https://example.com\",\"topic\":\"\"}")
+  |> has_body("{\"icon\":\"https://example.com\",\"topic\":\"topic\"}")
 }
 
 pub fn attachment_url_test() {
-  gleatfy.new()
+  subject()
   |> gleatfy.attachment_url(is: "https://example.com")
   |> request
-  |> has_body("{\"attachment\":\"https://example.com\",\"topic\":\"\"}")
+  |> has_body("{\"attachment\":\"https://example.com\",\"topic\":\"topic\"}")
 }
 
 pub fn attachment_name_test() {
-  gleatfy.new()
+  subject()
   |> gleatfy.attachment_name(is: "filename.jpg")
   |> request
-  |> has_body("{\"filename\":\"filename.jpg\",\"topic\":\"\"}")
+  |> has_body("{\"filename\":\"filename.jpg\",\"topic\":\"topic\"}")
 }
 
 pub fn actions_empty_test() {
-  gleatfy.new()
+  subject()
   |> gleatfy.actions(are: [])
   |> request
-  |> has_body("{\"actions\":[],\"topic\":\"\"}")
+  |> has_body("{\"actions\":[],\"topic\":\"topic\"}")
 }
 
 pub fn view_action_test() {
-  gleatfy.new()
+  subject()
   |> gleatfy.actions(are: [View("view label", "https://example.com", True)])
   |> request
   |> has_body(
-    "{\"actions\":[{\"action\":\"view\",\"label\":\"view label\",\"clear\":true,\"url\":\"https://example.com\"}],\"topic\":\"\"}",
+    "{\"actions\":[{\"action\":\"view\",\"label\":\"view label\",\"clear\":true,\"url\":\"https://example.com\"}],\"topic\":\"topic\"}",
   )
 }
 
 pub fn broadcast_action_test() {
-  gleatfy.new()
+  subject()
   |> gleatfy.actions(are: [
     Broadcast("view label", "some.in.tent", [#("ex", "tras")], False),
   ])
   |> request
   |> has_body(
-    "{\"actions\":[{\"action\":\"broadcast\",\"label\":\"view label\",\"clear\":false,\"intent\":\"some.in.tent\",\"extras\":{\"ex\":\"tras\"}}],\"topic\":\"\"}",
+    "{\"actions\":[{\"action\":\"broadcast\",\"label\":\"view label\",\"clear\":false,\"intent\":\"some.in.tent\",\"extras\":{\"ex\":\"tras\"}}],\"topic\":\"topic\"}",
   )
 }
 
@@ -210,10 +217,10 @@ pub fn http_action_test() {
     |> request.set_body("test body")
     |> request.set_method(http.Put)
 
-  gleatfy.new()
+  subject()
   |> gleatfy.actions(are: [Http("http label", action_request, False)])
   |> request
   |> has_body(
-    "{\"actions\":[{\"action\":\"broadcast\",\"label\":\"http label\",\"clear\":false,\"method\":\"put\",\"headers\":{\"x-test\":\"test header\"},\"body\":\"test body\"}],\"topic\":\"\"}",
+    "{\"actions\":[{\"action\":\"broadcast\",\"label\":\"http label\",\"clear\":false,\"method\":\"put\",\"headers\":{\"x-test\":\"test header\"},\"body\":\"test body\"}],\"topic\":\"topic\"}",
   )
 }

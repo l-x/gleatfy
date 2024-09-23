@@ -1,13 +1,19 @@
 import gleam/bit_array
+import gleam/bool
 import gleam/http.{Post}
 import gleam/http/request.{type Request} as req
 import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/pair
-import gleam/result.{try}
+import gleam/result.{replace_error, try}
 
 const default_server = "https://ntfy.sh"
+
+pub type Error {
+  InvalidServerUrl(String)
+  InvalidTopic(String)
+}
 
 pub type Priority {
   VeryHigh
@@ -144,8 +150,16 @@ pub fn actions(builder: Builder, are actions: List(Action)) -> Builder {
   Builder(..builder, actions: Some(actions))
 }
 
-pub fn request(for builder: Builder) -> Result(Request(String), Nil) {
-  use request <- try(req.to(builder.server))
+pub fn request(for builder: Builder) -> Result(Request(String), Error) {
+  use request <- try(
+    req.to(builder.server)
+    |> replace_error(InvalidServerUrl(builder.server)),
+  )
+
+  use <- bool.guard(
+    when: builder.topic == "",
+    return: Error(InvalidTopic(builder.topic)),
+  )
 
   request
   |> req.set_body(request_body(from: builder))
