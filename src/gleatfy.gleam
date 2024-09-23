@@ -24,11 +24,6 @@ pub type Priority {
   VeryLow
 }
 
-pub type Format {
-  Text
-  Markdown
-}
-
 pub type Login {
   Basic(user: String, password: String)
   Token(token: String)
@@ -45,23 +40,26 @@ pub type Action {
   )
 }
 
+pub type Message {
+  Text(String)
+  Markdown(String)
+  File(filename: String, url: String)
+}
+
 pub opaque type Builder {
   Builder(
     login: Option(Login),
     server: String,
     topic: String,
-    message: Option(String),
+    message: Option(Message),
     title: Option(String),
     priority: Option(Priority),
     tags: Option(List(String)),
-    format: Option(Format),
     delay: Option(String),
     call: Option(String),
     email: Option(String),
     click_url: Option(String),
     icon_url: Option(String),
-    attachment_url: Option(String),
-    attachment_name: Option(String),
     actions: Option(List(Action)),
     without_message_cache: Bool,
     without_firebase: Bool,
@@ -77,14 +75,11 @@ pub fn new() -> Builder {
     title: None,
     priority: None,
     tags: None,
-    format: None,
     delay: None,
     call: None,
     email: None,
     click_url: None,
     icon_url: None,
-    attachment_url: None,
-    attachment_name: None,
     actions: None,
     without_message_cache: False,
     without_firebase: False,
@@ -103,7 +98,7 @@ pub fn topic(builder: Builder, is topic: String) -> Builder {
   Builder(..builder, topic: topic)
 }
 
-pub fn message(builder: Builder, is message: String) -> Builder {
+pub fn message(builder: Builder, is message: Message) -> Builder {
   Builder(..builder, message: Some(message))
 }
 
@@ -117,10 +112,6 @@ pub fn priority(builder: Builder, is priority: Priority) -> Builder {
 
 pub fn tags(builder: Builder, are tags: List(String)) -> Builder {
   Builder(..builder, tags: Some(tags))
-}
-
-pub fn format(builder: Builder, is format: Format) -> Builder {
-  Builder(..builder, format: Some(format))
 }
 
 pub fn delay(builder: Builder, is delay: String) -> Builder {
@@ -141,14 +132,6 @@ pub fn click_url(builder: Builder, is click_url: String) -> Builder {
 
 pub fn icon_url(builder: Builder, is icon_url: String) -> Builder {
   Builder(..builder, icon_url: Some(icon_url))
-}
-
-pub fn attachment_url(builder: Builder, is attachment_url: String) -> Builder {
-  Builder(..builder, attachment_url: Some(attachment_url))
-}
-
-pub fn attachment_name(builder: Builder, is attachment_name: String) -> Builder {
-  Builder(..builder, attachment_name: Some(attachment_name))
 }
 
 pub fn actions(builder: Builder, are actions: List(Action)) -> Builder {
@@ -185,17 +168,14 @@ pub fn request(for builder: Builder) -> Result(Request(String), Error) {
 
 fn request_body(from builder: Builder) -> String {
   [#("topic", json.string(builder.topic))]
-  |> optional("message", for: builder.message, with: json.string)
+  |> json_message(builder.message)
   |> optional("title", for: builder.title, with: json.string)
   |> optional("priority", for: builder.priority, with: json_priority)
   |> optional("tags", for: builder.tags, with: json.array(_, json.string))
-  |> optional("markdown", for: builder.format, with: json_format)
   |> optional("delay", for: builder.delay, with: json.string)
   |> optional("call", for: builder.call, with: json.string)
   |> optional("email", for: builder.email, with: json.string)
   |> optional("click", for: builder.click_url, with: json.string)
-  |> optional("attachment", for: builder.attachment_url, with: json.string)
-  |> optional("filename", for: builder.attachment_name, with: json.string)
   |> optional("icon", for: builder.icon_url, with: json.string)
   |> optional("actions", for: builder.actions, with: json.array(_, json_action))
   |> json.object
@@ -214,6 +194,26 @@ fn optional(
   }
 }
 
+fn json_message(
+  params: List(#(String, Json)),
+  for message: Option(Message),
+) -> List(#(String, Json)) {
+  case message {
+    None -> params
+    Some(Text(value)) -> [#("message", json.string(value)), ..params]
+    Some(Markdown(value)) -> [
+      #("message", json.string(value)),
+      #("markdown", json.bool(True)),
+      ..params
+    ]
+    Some(File(filename:, url:)) -> [
+      #("attach", json.string(url)),
+      #("filename", json.string(filename)),
+      ..params
+    ]
+  }
+}
+
 fn json_priority(priority: Priority) -> Json {
   json.int(case priority {
     VeryHigh -> 5
@@ -221,13 +221,6 @@ fn json_priority(priority: Priority) -> Json {
     Normal -> 3
     Low -> 2
     VeryLow -> 1
-  })
-}
-
-fn json_format(format: Format) -> Json {
-  json.bool(case format {
-    Text -> False
-    Markdown -> True
   })
 }
 

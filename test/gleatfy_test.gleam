@@ -1,7 +1,7 @@
 import gleam/http
 import gleam/http/request
 import gleatfy.{
-  type Priority, Basic, Broadcast, High, Http, Low, Markdown, Normal, Text,
+  type Priority, Basic, Broadcast, File, High, Http, Low, Markdown, Normal, Text,
   Token, VeryHigh, VeryLow, View,
 }
 import gleeunit
@@ -88,9 +88,23 @@ pub fn token_auth_test() {
 
 pub fn message_test() {
   subject()
-  |> gleatfy.message(is: "message message")
+  |> gleatfy.message(is: Text("text message"))
   |> request
-  |> has_body("{\"message\":\"message message\",\"topic\":\"topic\"}")
+  |> has_body("{\"message\":\"text message\",\"topic\":\"topic\"}")
+
+  subject()
+  |> gleatfy.message(is: Markdown("markdown message"))
+  |> request
+  |> has_body(
+    "{\"message\":\"markdown message\",\"markdown\":true,\"topic\":\"topic\"}",
+  )
+
+  subject()
+  |> gleatfy.message(is: File("test.gif", "https://example.com/some.gif"))
+  |> request
+  |> has_body(
+    "{\"attach\":\"https://example.com/some.gif\",\"filename\":\"test.gif\",\"topic\":\"topic\"}",
+  )
 }
 
 pub fn title_test() {
@@ -134,18 +148,6 @@ pub fn tags_test() {
   |> has_body("{\"tags\":[\"one\",\"two\"],\"topic\":\"topic\"}")
 }
 
-pub fn format_test() {
-  subject()
-  |> gleatfy.format(is: Text)
-  |> request
-  |> has_body("{\"markdown\":false,\"topic\":\"topic\"}")
-
-  subject()
-  |> gleatfy.format(is: Markdown)
-  |> request
-  |> has_body("{\"markdown\":true,\"topic\":\"topic\"}")
-}
-
 pub fn delay_test() {
   subject()
   |> gleatfy.delay(is: "1 year")
@@ -179,20 +181,6 @@ pub fn icon_url_test() {
   |> gleatfy.icon_url(is: "https://example.com")
   |> request
   |> has_body("{\"icon\":\"https://example.com\",\"topic\":\"topic\"}")
-}
-
-pub fn attachment_url_test() {
-  subject()
-  |> gleatfy.attachment_url(is: "https://example.com")
-  |> request
-  |> has_body("{\"attachment\":\"https://example.com\",\"topic\":\"topic\"}")
-}
-
-pub fn attachment_name_test() {
-  subject()
-  |> gleatfy.attachment_name(is: "filename.jpg")
-  |> request
-  |> has_body("{\"filename\":\"filename.jpg\",\"topic\":\"topic\"}")
 }
 
 pub fn actions_empty_test() {
