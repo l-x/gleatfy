@@ -221,6 +221,6 @@ pub fn http_action_test() {
   |> gleatfy.actions(are: [Http("http label", action_request, False)])
   |> request
   |> has_body(
-    "{\"actions\":[{\"action\":\"broadcast\",\"label\":\"http label\",\"clear\":false,\"method\":\"put\",\"headers\":{\"x-test\":\"test header\"},\"body\":\"test body\"}],\"topic\":\"topic\"}",
+    "{\"actions\":[{\"action\":\"broadcast\",\"label\":\"http label\",\"clear\":false,\"method\":\"put\",\"url\":\"https://example.com/\",\"headers\":{\"x-test\":\"test header\"},\"body\":\"test body\"}],\"topic\":\"topic\"}",
   )
 }

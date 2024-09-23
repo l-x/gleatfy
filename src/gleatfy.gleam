@@ -7,6 +7,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/pair
 import gleam/result.{replace_error, try}
+import gleam/uri
 
 const default_server = "https://ntfy.sh"
 
@@ -170,28 +171,28 @@ pub fn request(for builder: Builder) -> Result(Request(String), Error) {
 
 fn request_body(from builder: Builder) -> String {
   [#("topic", json.string(builder.topic))]
-  |> optional("message", builder.message, json.string)
-  |> optional("title", builder.title, json.string)
-  |> optional("priority", builder.priority, json_priority)
-  |> optional("tags", builder.tags, json.array(_, json.string))
-  |> optional("markdown", builder.format, json_format)
-  |> optional("delay", builder.delay, json.string)
-  |> optional("call", builder.call, json.string)
-  |> optional("email", builder.email, json.string)
-  |> optional("click", builder.click_url, json.string)
-  |> optional("attachment", builder.attachment_url, json.string)
-  |> optional("filename", builder.attachment_name, json.string)
-  |> optional("icon", builder.icon_url, json.string)
-  |> optional("actions", builder.actions, json_actions)
+  |> optional("message", for: builder.message, with: json.string)
+  |> optional("title", for: builder.title, with: json.string)
+  |> optional("priority", for: builder.priority, with: json_priority)
+  |> optional("tags", for: builder.tags, with: json.array(_, json.string))
+  |> optional("markdown", for: builder.format, with: json_format)
+  |> optional("delay", for: builder.delay, with: json.string)
+  |> optional("call", for: builder.call, with: json.string)
+  |> optional("email", for: builder.email, with: json.string)
+  |> optional("click", for: builder.click_url, with: json.string)
+  |> optional("attachment", for: builder.attachment_url, with: json.string)
+  |> optional("filename", for: builder.attachment_name, with: json.string)
+  |> optional("icon", for: builder.icon_url, with: json.string)
+  |> optional("actions", for: builder.actions, with: json.array(_, json_action))
   |> json.object
   |> json.to_string
 }
 
 fn optional(
   params: List(#(String, Json)),
-  name,
-  value: Option(a),
-  fun: fn(a) -> Json,
+  property name: String,
+  for value: Option(a),
+  with fun: fn(a) -> Json,
 ) -> List(#(String, Json)) {
   case value {
     None -> params
@@ -210,40 +211,16 @@ fn json_priority(priority: Priority) -> Json {
 }
 
 fn json_format(format: Format) -> Json {
-  case format {
-    Text -> json.bool(False)
-    Markdown -> json.bool(True)
-  }
-}
-
-fn set_login(request: Request(String), login: Option(Login)) -> Request(String) {
-  case login {
-    None -> request
-    Some(Token(token)) ->
-      req.set_header(request, "authorization", "Bearer " <> token)
-    Some(Basic(user, pass)) ->
-      req.set_header(
-        request,
-        "authorization",
-        "Basic "
-          <> bit_array.base64_encode(
-          bit_array.from_string(user <> ":" <> pass),
-          False,
-        ),
-      )
-  }
+  json.bool(case format {
+    Text -> False
+    Markdown -> True
+  })
 }
 
 fn json_string_map(items: List(#(String, String))) -> Json {
   items
   |> list.map(pair.map_second(_, json.string))
   |> json.object
-}
-
-fn json_actions(actions: List(Action)) -> Json {
-  actions
-  |> list.map(json_action)
-  |> json.preprocessed_array
 }
 
 fn json_action(action: Action) -> Json {
@@ -283,6 +260,7 @@ fn json_http_action(
 ) -> Json {
   json_base_action("broadcast", label, clear_after, [
     #("method", request.method |> http.method_to_string |> json.string),
+    #("url", request |> req.to_uri |> uri.to_string |> json.string),
     #("headers", json_string_map(request.headers)),
     #("body", json.string(request.body)),
   ])
@@ -298,4 +276,22 @@ fn json_broadcast_action(
     #("intent", json.string(intent)),
     #("extras", json_string_map(extras)),
   ])
+}
+
+fn set_login(request: Request(String), login: Option(Login)) -> Request(String) {
+  case login {
+    None -> request
+    Some(Token(token)) ->
+      req.set_header(request, "authorization", "Bearer " <> token)
+    Some(Basic(user, pass)) ->
+      req.set_header(
+        request,
+        "authorization",
+        "Basic "
+          <> bit_array.base64_encode(
+          bit_array.from_string(user <> ":" <> pass),
+          False,
+        ),
+      )
+  }
 }
