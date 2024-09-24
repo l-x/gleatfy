@@ -1,11 +1,14 @@
 import gleam/http
 import gleam/http/request
+import gleam/http/response
 import gleatfy.{
-  type Priority, Basic, Broadcast, File, High, Http, Low, Markdown, Normal, Text,
+  type Priority, Basic, Broadcast, High, Http, Low, Markdown, Normal, Text,
   Token, VeryHigh, VeryLow, View,
 }
 import gleeunit
 import gleeunit/should
+
+const empty_body = "{\"topic\":\"topic\"}"
 
 pub fn main() {
   gleeunit.main()
@@ -16,110 +19,133 @@ fn subject() -> gleatfy.Builder {
   |> gleatfy.topic("topic")
 }
 
-fn has_body(
-  req: request.Request(String),
-  body: String,
-) -> request.Request(String) {
-  req.body
-  |> should.equal(body)
+fn test_send(
+  builder: gleatfy.Builder,
+  expected_body: String,
+  expected_headers: List(#(String, String)),
+) -> Result(String, gleatfy.Error(a)) {
+  let send = fn(r: request.Request(String)) {
+    r.body |> should.equal(expected_body)
+    r.headers |> should.equal(expected_headers)
 
-  req
-}
+    Ok(response.Response(200, [], "{\"id\":\"ok\"}"))
+  }
 
-fn has_headers(
-  req: request.Request(String),
-  headers: List(#(String, String)),
-) -> request.Request(String) {
-  req.headers
-  |> should.equal(headers)
-
-  req
-}
-
-fn request(builder: gleatfy.Builder) -> request.Request(String) {
   builder
-  |> gleatfy.request
-  |> should.be_ok
+  |> gleatfy.send(using: send)
+}
+
+pub fn server_error_test() {
+  subject()
+  |> gleatfy.send(fn(_) {
+    Ok(response.Response(
+      456,
+      [],
+      "{\"code\":789,\"http\":456,\"error\":\"error message\"}",
+    ))
+  })
+  |> should.be_error
+  |> should.equal(gleatfy.ServerError(
+    http_status: 456,
+    code: 789,
+    message: "error message",
+  ))
+}
+
+pub fn invalid_response_test() {
+  subject()
+  |> gleatfy.send(fn(_) {
+    Ok(response.Response(456, [], "this is an invalid response"))
+  })
+  |> should.be_error
+  |> should.equal(gleatfy.InvalidServerResponse("this is an invalid response"))
 }
 
 pub fn empty_topic_test() {
   subject()
   |> gleatfy.topic(is: "")
-  |> gleatfy.request
-  |> should.be_error
-  |> should.equal(gleatfy.InvalidTopic(""))
+  |> test_send("", [])
+  |> should.equal(Error(gleatfy.InvalidTopic("")))
 }
 
 pub fn invalid_server_test() {
   subject()
   |> gleatfy.server("blah")
-  |> gleatfy.request
-  |> should.be_error
-  |> should.equal(gleatfy.InvalidServerUrl("blah"))
+  |> test_send("", [])
+  |> should.equal(Error(gleatfy.InvalidServerUrl("blah")))
 }
 
 pub fn without_message_cache_test() {
   subject()
   |> gleatfy.without_message_cache
-  |> request
-  |> has_headers([#("cache", "no")])
+  |> test_send(empty_body, [#("cache", "no")])
+  |> should.be_ok
 }
 
 pub fn without_firebase_test() {
   subject()
   |> gleatfy.without_firebase
-  |> request
-  |> has_headers([#("firebase", "no")])
+  |> test_send(empty_body, [#("firebase", "no")])
+  |> should.be_ok
 }
 
 pub fn basic_auth_test() {
   subject()
   |> gleatfy.login(with: Basic("username", "password"))
-  |> request
-  |> has_headers([#("authorization", "Basic dXNlcm5hbWU6cGFzc3dvcmQ")])
+  |> test_send(empty_body, [#("authorization", "Basic dXNlcm5hbWU6cGFzc3dvcmQ")])
+  |> should.be_ok
 }
 
 pub fn token_auth_test() {
   subject()
   |> gleatfy.login(with: Token("token"))
-  |> request
-  |> has_headers([#("authorization", "Bearer token")])
+  |> test_send(empty_body, [#("authorization", "Bearer token")])
+  |> should.be_ok
 }
 
 pub fn message_test() {
   subject()
   |> gleatfy.message(is: Text("text message"))
-  |> request
-  |> has_body("{\"message\":\"text message\",\"topic\":\"topic\"}")
+  |> test_send("{\"message\":\"text message\",\"topic\":\"topic\"}", [])
+  |> should.be_ok
 
   subject()
   |> gleatfy.message(is: Markdown("markdown message"))
-  |> request
-  |> has_body(
+  |> test_send(
     "{\"message\":\"markdown message\",\"markdown\":true,\"topic\":\"topic\"}",
+    [],
   )
+  |> should.be_ok
+}
+
+pub fn attachment_test() {
+  subject()
+  |> gleatfy.attachment_url(is: "https://example.com/image")
+  |> test_send(
+    "{\"attach\":\"https://example.com/image\",\"topic\":\"topic\"}",
+    [],
+  )
+  |> should.be_ok
 
   subject()
-  |> gleatfy.message(is: File("test.gif", "https://example.com/some.gif"))
-  |> request
-  |> has_body(
-    "{\"attach\":\"https://example.com/some.gif\",\"filename\":\"test.gif\",\"topic\":\"topic\"}",
-  )
+  |> gleatfy.attachment_filename(is: "cat.gif")
+  |> test_send("{\"filename\":\"cat.gif\",\"topic\":\"topic\"}", [])
+  |> should.be_ok
 }
 
 pub fn title_test() {
   subject()
   |> gleatfy.title(is: "message title")
-  |> request
-  |> has_body("{\"title\":\"message title\",\"topic\":\"topic\"}")
+  |> test_send("{\"title\":\"message title\",\"topic\":\"topic\"}", [])
+  |> should.be_ok
 }
 
 pub fn priority_test() {
   let should_have_body = fn(p: Priority, body: String) -> Nil {
     subject()
     |> gleatfy.priority(is: p)
-    |> request
-    |> has_body(body)
+    |> test_send(body, [])
+    |> should.be_ok
 
     Nil
   }
@@ -134,69 +160,70 @@ pub fn priority_test() {
 pub fn tags_test() {
   subject()
   |> gleatfy.tags(are: [])
-  |> request
-  |> has_body("{\"tags\":[],\"topic\":\"topic\"}")
+  |> test_send("{\"tags\":[],\"topic\":\"topic\"}", [])
+  |> should.be_ok
 
   subject()
   |> gleatfy.tags(are: ["one"])
-  |> request
-  |> has_body("{\"tags\":[\"one\"],\"topic\":\"topic\"}")
+  |> test_send("{\"tags\":[\"one\"],\"topic\":\"topic\"}", [])
+  |> should.be_ok
 
   subject()
   |> gleatfy.tags(are: ["one", "two"])
-  |> request
-  |> has_body("{\"tags\":[\"one\",\"two\"],\"topic\":\"topic\"}")
+  |> test_send("{\"tags\":[\"one\",\"two\"],\"topic\":\"topic\"}", [])
+  |> should.be_ok
 }
 
 pub fn delay_test() {
   subject()
   |> gleatfy.delay(is: "1 year")
-  |> request
-  |> has_body("{\"delay\":\"1 year\",\"topic\":\"topic\"}")
+  |> test_send("{\"delay\":\"1 year\",\"topic\":\"topic\"}", [])
+  |> should.be_ok
 }
 
 pub fn call_test() {
   subject()
   |> gleatfy.call(to: "+123456789")
-  |> request
-  |> has_body("{\"call\":\"+123456789\",\"topic\":\"topic\"}")
+  |> test_send("{\"call\":\"+123456789\",\"topic\":\"topic\"}", [])
+  |> should.be_ok
 }
 
 pub fn email_test() {
   subject()
   |> gleatfy.email(to: "info@example.com")
-  |> request
-  |> has_body("{\"email\":\"info@example.com\",\"topic\":\"topic\"}")
+  |> test_send("{\"email\":\"info@example.com\",\"topic\":\"topic\"}", [])
+  |> should.be_ok
 }
 
 pub fn click_url_test() {
   subject()
   |> gleatfy.click_url(is: "https://example.com")
-  |> request
-  |> has_body("{\"click\":\"https://example.com\",\"topic\":\"topic\"}")
+  |> test_send("{\"click\":\"https://example.com\",\"topic\":\"topic\"}", [])
+  |> should.be_ok
 }
 
 pub fn icon_url_test() {
   subject()
   |> gleatfy.icon_url(is: "https://example.com")
-  |> request
-  |> has_body("{\"icon\":\"https://example.com\",\"topic\":\"topic\"}")
+  |> test_send("{\"icon\":\"https://example.com\",\"topic\":\"topic\"}", [])
+  |> should.be_ok
 }
 
 pub fn actions_empty_test() {
   subject()
   |> gleatfy.actions(are: [])
-  |> request
-  |> has_body("{\"actions\":[],\"topic\":\"topic\"}")
+  |> test_send("{\"actions\":[],\"topic\":\"topic\"}", [])
+  |> should.be_ok
 }
 
 pub fn view_action_test() {
   subject()
   |> gleatfy.actions(are: [View("view label", "https://example.com", True)])
-  |> request
-  |> has_body(
+  |> test_send(
     "{\"actions\":[{\"action\":\"view\",\"label\":\"view label\",\"clear\":true,\"url\":\"https://example.com\"}],\"topic\":\"topic\"}",
+    [],
   )
+  |> should.be_ok
 }
 
 pub fn broadcast_action_test() {
@@ -204,10 +231,11 @@ pub fn broadcast_action_test() {
   |> gleatfy.actions(are: [
     Broadcast("view label", "some.in.tent", [#("ex", "tras")], False),
   ])
-  |> request
-  |> has_body(
+  |> test_send(
     "{\"actions\":[{\"action\":\"broadcast\",\"label\":\"view label\",\"clear\":false,\"intent\":\"some.in.tent\",\"extras\":{\"ex\":\"tras\"}}],\"topic\":\"topic\"}",
+    [],
   )
+  |> should.be_ok
 }
 
 pub fn http_action_test() {
@@ -221,8 +249,9 @@ pub fn http_action_test() {
 
   subject()
   |> gleatfy.actions(are: [Http("http label", action_request, False)])
-  |> request
-  |> has_body(
+  |> test_send(
     "{\"actions\":[{\"action\":\"broadcast\",\"label\":\"http label\",\"clear\":false,\"method\":\"put\",\"url\":\"https://example.com/\",\"headers\":{\"x-test\":\"test header\"},\"body\":\"test body\"}],\"topic\":\"topic\"}",
+    [],
   )
+  |> should.be_ok
 }

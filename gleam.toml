@@ -1,13 +1,14 @@
 name = "gleatfy"
 version = "0.1.0"
 
-# description = ""
+description = "A Gleam client for the ntfy push notification API"
 
 licences = ["GPL-3.0-or-later"]
 repository = { type = "github", user = "l-x", repo = "gleatfy" }
 
-gleam = ">= 1.5.0"
+links = [{ title = "Website", href = "https://ntfy.sh/" }]
 
+gleam = ">= 1.5.0"
 
 [dependencies]
 gleam_stdlib = ">= 0.34.0 and < 2.0.0"
@@ -16,3 +17,5 @@ gleam_http = ">= 3.7.0 and < 4.0.0"
 
 [dev-dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"
+gleam_httpc = ">= 2.3.0 and < 3.0.0"
+gleam_hackney = ">= 1.2.0 and < 2.0.0"

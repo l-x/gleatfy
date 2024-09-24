@@ -1,7 +1,10 @@
 import gleam/bit_array
 import gleam/bool
+import gleam/dynamic
+import gleam/function
 import gleam/http.{Post}
 import gleam/http/request.{type Request} as req
+import gleam/http/response.{type Response, Response}
 import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -11,9 +14,12 @@ import gleam/uri
 
 const default_server = "https://ntfy.sh"
 
-pub type Error {
+pub type Error(a) {
   InvalidServerUrl(String)
   InvalidTopic(String)
+  ClientError(a)
+  InvalidServerResponse(String)
+  ServerError(code: Int, http_status: Int, message: String)
 }
 
 pub type Priority {
@@ -43,7 +49,6 @@ pub type Action {
 pub type Message {
   Text(String)
   Markdown(String)
-  File(filename: String, url: String)
 }
 
 pub opaque type Builder {
@@ -52,12 +57,15 @@ pub opaque type Builder {
     server: String,
     topic: String,
     message: Option(Message),
+    markdown: Bool,
     title: Option(String),
     priority: Option(Priority),
     tags: Option(List(String)),
     delay: Option(String),
     call: Option(String),
     email: Option(String),
+    attachment_url: Option(String),
+    attachment_filename: Option(String),
     click_url: Option(String),
     icon_url: Option(String),
     actions: Option(List(Action)),
@@ -72,12 +80,15 @@ pub fn new() -> Builder {
     server: default_server,
     topic: "",
     message: None,
+    markdown: False,
     title: None,
     priority: None,
     tags: None,
     delay: None,
     call: None,
     email: None,
+    attachment_url: None,
+    attachment_filename: None,
     click_url: None,
     icon_url: None,
     actions: None,
@@ -86,8 +97,8 @@ pub fn new() -> Builder {
   )
 }
 
-pub fn login(builder: Builder, with credentials: Login) -> Builder {
-  Builder(..builder, login: Some(credentials))
+pub fn login(builder: Builder, with login: Login) -> Builder {
+  Builder(..builder, login: Some(login))
 }
 
 pub fn server(builder: Builder, is server: String) -> Builder {
@@ -130,6 +141,14 @@ pub fn click_url(builder: Builder, is click_url: String) -> Builder {
   Builder(..builder, click_url: Some(click_url))
 }
 
+pub fn attachment_url(builder: Builder, is attachment_url: String) -> Builder {
+  Builder(..builder, attachment_url: Some(attachment_url))
+}
+
+pub fn attachment_filename(builder: Builder, is filename: String) -> Builder {
+  Builder(..builder, attachment_filename: Some(filename))
+}
+
 pub fn icon_url(builder: Builder, is icon_url: String) -> Builder {
   Builder(..builder, icon_url: Some(icon_url))
 }
@@ -146,7 +165,20 @@ pub fn without_firebase(builder: Builder) -> Builder {
   Builder(..builder, without_firebase: True)
 }
 
-pub fn request(for builder: Builder) -> Result(Request(String), Error) {
+pub fn send(
+  builder: Builder,
+  using send_fn: fn(Request(String)) -> Result(Response(String), a),
+) -> Result(String, Error(a)) {
+  use request <- try(request(for: builder))
+  use response <- try(send_fn(request) |> result.map_error(ClientError))
+
+  case response {
+    Response(200, body:, ..) -> decode_success(body)
+    Response(_, body:, ..) -> decode_error(body)
+  }
+}
+
+fn request(for builder: Builder) -> Result(Request(String), Error(a)) {
   use request <- try(
     req.to(builder.server)
     |> replace_error(InvalidServerUrl(builder.server)),
@@ -166,10 +198,36 @@ pub fn request(for builder: Builder) -> Result(Request(String), Error) {
   |> Ok
 }
 
+fn decode_success(body: String) -> Result(String, Error(a)) {
+  body
+  |> json.decode(using: dynamic.decode1(
+    function.identity,
+    dynamic.field("id", dynamic.string),
+  ))
+  |> replace_error(InvalidServerResponse(body))
+}
+
+fn decode_error(body: String) -> Result(String, Error(a)) {
+  let decode_error =
+    dynamic.decode3(
+      ServerError,
+      dynamic.field("code", dynamic.int),
+      dynamic.field("http", dynamic.int),
+      dynamic.field("error", dynamic.string),
+    )
+
+  case json.decode(body, using: decode_error) {
+    Ok(err) -> Error(err)
+    Error(_) -> Error(InvalidServerResponse(body))
+  }
+}
+
 fn request_body(from builder: Builder) -> String {
   [#("topic", json.string(builder.topic))]
   |> json_message(builder.message)
   |> optional("title", for: builder.title, with: json.string)
+  |> optional("attach", for: builder.attachment_url, with: json.string)
+  |> optional("filename", for: builder.attachment_filename, with: json.string)
   |> optional("priority", for: builder.priority, with: json_priority)
   |> optional("tags", for: builder.tags, with: json.array(_, json.string))
   |> optional("delay", for: builder.delay, with: json.string)
@@ -204,11 +262,6 @@ fn json_message(
     Some(Markdown(value)) -> [
       #("message", json.string(value)),
       #("markdown", json.bool(True)),
-      ..params
-    ]
-    Some(File(filename:, url:)) -> [
-      #("attach", json.string(url)),
-      #("filename", json.string(filename)),
       ..params
     ]
   }
