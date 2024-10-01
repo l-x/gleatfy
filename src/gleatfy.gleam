@@ -31,7 +31,8 @@ pub type Priority {
 }
 
 /// Authentication method to use
-/// See https://docs.ntfy.sh/publish/#authentication
+/// 
+/// See <https://docs.ntfy.sh/publish/#authentication>
 /// 
 pub type Login {
   Basic(user: String, password: String)
@@ -40,7 +41,8 @@ pub type Login {
 
 /// Defintion for action buttons. If `clear_after` is set to `True`
 /// the message is marked as read after clicking on this button.
-/// See https://docs.ntfy.sh/publish/#action-buttons
+/// 
+/// See <https://docs.ntfy.sh/publish/#action-buttons>
 /// 
 pub type Action {
   View(label: String, url: String, clear_after: Bool)
@@ -115,7 +117,8 @@ pub fn server(builder: Builder, is server: String) -> Builder {
 }
 
 /// Set the authentication method and data. Defaults to no authentication
-/// See https://docs.ntfy.sh/publish/#authentication
+/// 
+/// <See https://docs.ntfy.sh/publish/#authentication>
 /// 
 pub fn login(builder: Builder, with login: Login) -> Builder {
   Builder(..builder, login: Some(login))
@@ -139,84 +142,95 @@ pub fn topic(builder: Builder, is topic: String) -> Builder {
 /// new() |> message(Markdown("**Markdown** text"))
 /// ```
 /// 
-/// For markdown messages see https://docs.ntfy.sh/publish/#markdown-formatting
+/// For markdown messages see <https://docs.ntfy.sh/publish/#markdown-formatting>
 /// 
 pub fn message(builder: Builder, is message: Message) -> Builder {
   Builder(..builder, message: Some(message))
 }
 
 /// Set the notification's title.
-/// See https://docs.ntfy.sh/publish/#message-title
+/// 
+/// See <https://docs.ntfy.sh/publish/#message-title>
 /// 
 pub fn title(builder: Builder, is title: String) -> Builder {
   Builder(..builder, title: Some(title))
 }
 
 /// Set the notification's priority
-/// See https://docs.ntfy.sh/publish/#message-priority
+/// 
+/// See <https://docs.ntfy.sh/publish/#message-priority>
 /// 
 pub fn priority(builder: Builder, is priority: Priority) -> Builder {
   Builder(..builder, priority: Some(priority))
 }
 
 /// Set optional tags for the notification
-/// See https://docs.ntfy.sh/publish/#tags-emojis
+/// 
+/// See <https://docs.ntfy.sh/publish/#tags-emojis>
 /// 
 pub fn tags(builder: Builder, are tags: List(String)) -> Builder {
   Builder(..builder, tags: Some(tags))
 }
 
 /// Set an optinal delay for notification delivery
-/// See https://docs.ntfy.sh/publish/#scheduled-delivery
+/// 
+/// See <https://docs.ntfy.sh/publish/#scheduled-delivery>
 /// 
 pub fn delay(builder: Builder, is delay: String) -> Builder {
   Builder(..builder, delay: Some(delay))
 }
 
 /// Set an optional URL to open when the notification is clicked
-/// See https://docs.ntfy.sh/publish/#click-action
+/// 
+/// See <https://docs.ntfy.sh/publish/#click-action>
 /// 
 pub fn click_url(builder: Builder, is click_url: String) -> Builder {
   Builder(..builder, click_url: Some(click_url))
 }
 
 /// Attach a file by a given URL
-/// See https://docs.ntfy.sh/publish/#attach-file-from-a-url
+/// 
+/// See <https://docs.ntfy.sh/publish/#attach-file-from-a-url>
 /// 
 pub fn attachment_url(builder: Builder, is attachment_url: String) -> Builder {
   Builder(..builder, attachment_url: Some(attachment_url))
 }
 
 /// Set a specific name for an attached file
-/// See https://docs.ntfy.sh/publish/#attach-file-from-a-url
+/// 
+/// See <https://docs.ntfy.sh/publish/#attach-file-from-a-url>
 /// 
 pub fn attachment_filename(builder: Builder, is filename: String) -> Builder {
   Builder(..builder, attachment_filename: Some(filename))
 }
 
 /// Set a notification icon by URL
-/// https://docs.ntfy.sh/publish/#icons
+/// 
+/// See <https://docs.ntfy.sh/publish/#icons>
 /// 
 pub fn icon_url(builder: Builder, is icon_url: String) -> Builder {
   Builder(..builder, icon_url: Some(icon_url))
 }
 
 /// Forward the notification to an email address
-/// See https://docs.ntfy.sh/publish/#e-mail-notifications
+/// 
+/// See <https://docs.ntfy.sh/publish/#e-mail-notifications>
 /// 
 pub fn email(builder: Builder, to email: String) -> Builder {
   Builder(..builder, email: Some(email))
 }
 
 /// Set a phone number to be called to read the message out loud using text-to-speech
-/// See https://docs.ntfy.sh/publish/#phone-calls
+/// 
+/// See <https://docs.ntfy.sh/publish/#phone-calls>
 /// 
 pub fn call(builder: Builder, to number: String) -> Builder {
   Builder(..builder, call: Some(number))
 }
 
 /// Add a list of action buttons for the notification
-/// See https://docs.ntfy.sh/publish/#action-buttons
+/// 
+/// See <https://docs.ntfy.sh/publish/#action-buttons>
 /// 
 /// ## Examples
 /// 
@@ -260,14 +274,16 @@ pub fn actions(builder: Builder, are actions: List(Action)) -> Builder {
 }
 
 /// Tell the server not to cache this notification
-/// See https://docs.ntfy.sh/publish/#message-caching
+/// 
+/// See <https://docs.ntfy.sh/publish/#message-caching>
 /// 
 pub fn without_message_cache(builder: Builder) -> Builder {
   Builder(..builder, without_message_cache: True)
 }
 
 /// Tell the server not to send this notification to FCM
-/// See https://docs.ntfy.sh/publish/#disable-firebase
+/// 
+/// See <https://docs.ntfy.sh/publish/#disable-firebase>
 /// 
 pub fn without_firebase(builder: Builder) -> Builder {
   Builder(..builder, without_firebase: True)
@@ -278,7 +294,7 @@ pub fn without_firebase(builder: Builder) -> Builder {
 /// ## Example
 /// 
 /// ```gleam
-/// new() |> topic("alert") |> send(https.send)
+/// new() |> topic("alert") |> send(hackney.send)
 /// /// -> Ok("message-id")
 /// ```
 /// 
