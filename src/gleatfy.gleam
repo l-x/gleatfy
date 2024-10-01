@@ -118,7 +118,7 @@ pub fn server(builder: Builder, is server: String) -> Builder {
 
 /// Set the authentication method and data. Defaults to no authentication
 /// 
-/// <See https://docs.ntfy.sh/publish/#authentication>
+/// See <https://docs.ntfy.sh/publish/#authentication>
 /// 
 pub fn login(builder: Builder, with login: Login) -> Builder {
   Builder(..builder, login: Some(login))
