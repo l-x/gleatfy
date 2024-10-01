@@ -30,11 +30,18 @@ pub type Priority {
   VeryLow
 }
 
+/// Authentication method to use
+/// See https://docs.ntfy.sh/publish/#authentication
+/// 
 pub type Login {
   Basic(user: String, password: String)
   Token(token: String)
 }
 
+/// Defintion for action buttons. If `clear_after` is set to `True`
+/// the message is marked as read after clicking on this button.
+/// See https://docs.ntfy.sh/publish/#action-buttons
+/// 
 pub type Action {
   View(label: String, url: String, clear_after: Bool)
   Http(label: String, request: Request(String), clear_after: Bool)
@@ -46,6 +53,8 @@ pub type Action {
   )
 }
 
+/// Notification message to send
+/// 
 pub type Message {
   Text(String)
   Markdown(String)
@@ -74,6 +83,8 @@ pub opaque type Builder {
   )
 }
 
+/// Creates a fresh notification message builder
+/// 
 pub fn new() -> Builder {
   Builder(
     login: None,
@@ -97,74 +108,180 @@ pub fn new() -> Builder {
   )
 }
 
-pub fn login(builder: Builder, with login: Login) -> Builder {
-  Builder(..builder, login: Some(login))
-}
-
+/// Set the ntfy instance to use. Defaults to https://ntfy.sh
+/// 
 pub fn server(builder: Builder, is server: String) -> Builder {
   Builder(..builder, server:)
 }
 
+/// Set the authentication method and data. Defaults to no authentication
+/// See https://docs.ntfy.sh/publish/#authentication
+/// 
+pub fn login(builder: Builder, with login: Login) -> Builder {
+  Builder(..builder, login: Some(login))
+}
+
+/// Set the **mandatory** topic to send the notification to.
+/// 
 pub fn topic(builder: Builder, is topic: String) -> Builder {
   Builder(..builder, topic: topic)
 }
 
+/// Set the notification's message body.
+/// 
+/// ## Examples
+/// 
+/// ```gleam
+/// new() |> message(Text("Plain text"))
+/// ```
+/// 
+/// ```gleam
+/// new() |> message(Markdown("**Markdown** text"))
+/// ```
+/// 
+/// For markdown messages see https://docs.ntfy.sh/publish/#markdown-formatting
+/// 
 pub fn message(builder: Builder, is message: Message) -> Builder {
   Builder(..builder, message: Some(message))
 }
 
+/// Set the notification's title.
+/// See https://docs.ntfy.sh/publish/#message-title
+/// 
 pub fn title(builder: Builder, is title: String) -> Builder {
   Builder(..builder, title: Some(title))
 }
 
+/// Set the notification's priority
+/// See https://docs.ntfy.sh/publish/#message-priority
+/// 
 pub fn priority(builder: Builder, is priority: Priority) -> Builder {
   Builder(..builder, priority: Some(priority))
 }
 
+/// Set optional tags for the notification
+/// See https://docs.ntfy.sh/publish/#tags-emojis
+/// 
 pub fn tags(builder: Builder, are tags: List(String)) -> Builder {
   Builder(..builder, tags: Some(tags))
 }
 
+/// Set an optinal delay for notification delivery
+/// See https://docs.ntfy.sh/publish/#scheduled-delivery
+/// 
 pub fn delay(builder: Builder, is delay: String) -> Builder {
   Builder(..builder, delay: Some(delay))
 }
 
-pub fn call(builder: Builder, to number: String) -> Builder {
-  Builder(..builder, call: Some(number))
-}
-
-pub fn email(builder: Builder, to email: String) -> Builder {
-  Builder(..builder, email: Some(email))
-}
-
+/// Set an optional URL to open when the notification is clicked
+/// See https://docs.ntfy.sh/publish/#click-action
+/// 
 pub fn click_url(builder: Builder, is click_url: String) -> Builder {
   Builder(..builder, click_url: Some(click_url))
 }
 
+/// Attach a file by a given URL
+/// See https://docs.ntfy.sh/publish/#attach-file-from-a-url
+/// 
 pub fn attachment_url(builder: Builder, is attachment_url: String) -> Builder {
   Builder(..builder, attachment_url: Some(attachment_url))
 }
 
+/// Set a specific name for an attached file
+/// See https://docs.ntfy.sh/publish/#attach-file-from-a-url
+/// 
 pub fn attachment_filename(builder: Builder, is filename: String) -> Builder {
   Builder(..builder, attachment_filename: Some(filename))
 }
 
+/// Set a notification icon by URL
+/// https://docs.ntfy.sh/publish/#icons
+/// 
 pub fn icon_url(builder: Builder, is icon_url: String) -> Builder {
   Builder(..builder, icon_url: Some(icon_url))
 }
 
+/// Forward the notification to an email address
+/// See https://docs.ntfy.sh/publish/#e-mail-notifications
+/// 
+pub fn email(builder: Builder, to email: String) -> Builder {
+  Builder(..builder, email: Some(email))
+}
+
+/// Set a phone number to be called to read the message out loud using text-to-speech
+/// See https://docs.ntfy.sh/publish/#phone-calls
+/// 
+pub fn call(builder: Builder, to number: String) -> Builder {
+  Builder(..builder, call: Some(number))
+}
+
+/// Add a list of action buttons for the notification
+/// See https://docs.ntfy.sh/publish/#action-buttons
+/// 
+/// ## Examples
+/// 
+/// ```gleam
+/// new() |> actions(are: [View("Visit ntfy.sh", "https://ntfy.sh", True)])
+/// ```
+/// 
+/// ```gleam
+///   new()
+/// |> actions(are: [
+///   Broadcast(
+///    "Take picture",
+///     "io.heckel.ntfy.USER_ACTION",
+///     [#("cmd", "pic"), #("camera", "front")],
+///    False,
+///  ),
+/// ])
+/// ```
+/// 
+/// ```gleam
+///   new()
+///   |> actions(are: [
+///     Http(
+///       "Close door",
+///       {
+///         let assert Ok(req) = request.to("https://api.mygarage.lan/")
+/// 
+///         req
+///         |> request.set_method(http.Put)
+///         |> request.set_header("Authorization", "Bearer zAzsx1sk..")
+///         |> request.set_body("{\"action\": \"close\"}")
+///       },
+///       True,
+///     ),
+///   ])
+/// }
+/// ```
+/// 
 pub fn actions(builder: Builder, are actions: List(Action)) -> Builder {
   Builder(..builder, actions: Some(actions))
 }
 
+/// Tell the server not to cache this notification
+/// See https://docs.ntfy.sh/publish/#message-caching
+/// 
 pub fn without_message_cache(builder: Builder) -> Builder {
   Builder(..builder, without_message_cache: True)
 }
 
+/// Tell the server not to send this notification to FCM
+/// See https://docs.ntfy.sh/publish/#disable-firebase
+/// 
 pub fn without_firebase(builder: Builder) -> Builder {
   Builder(..builder, without_firebase: True)
 }
 
+/// Create the HTTP request, hands it over to `send_fn` and decodes its return value
+/// 
+/// ## Example
+/// 
+/// ```gleam
+/// new() |> topic("alert") |> send(https.send)
+/// /// -> Ok("message-id")
+/// ```
+/// 
 pub fn send(
   builder: Builder,
   using send_fn: fn(Request(String)) -> Result(Response(String), a),
